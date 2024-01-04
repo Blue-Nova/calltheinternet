@@ -6,7 +6,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
-const PORT = process.env.PORT || 2000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 
@@ -35,6 +35,10 @@ io.on('connection', (socket) => {
       // Notify all clients about the disconnected user
       io.emit('user-disconnected', socket.id);
    });
+});
+
+app.get('/', (req, res) => {
+   res.sendFile(__dirname + '/index.html');
 });
 
 server.listen(PORT, () => {
