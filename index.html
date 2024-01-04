@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Simple Voice Chat</title>
+</head>
+<body>
+   <ul id="user-list"></ul>
+   <audio id="audio" controls></audio>
+
+   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+   <script>
+      const socket = io();
+      const userContainer = document.getElementById('user-list');
+      const audioElement = document.getElementById('audio');
+      const peerConnection = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+
+      let localStream;
+
+      peerConnection.onicecandidate = (event) => {
+         if (event.candidate) {
+            socket.emit('ice-candidate', event.candidate);
+         }
+      };
+
+      socket.on('user-connected', (userId) => {
+         addUser(userId);
+         createOffer(userId);
+      });
+
+      socket.on('user-disconnected', (userId) => {
+         removeUser(userId);
+      });
+
+      socket.on('offer', (offer, senderId) => {
+         addUser(senderId);
+         peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+            .then(() => peerConnection.createAnswer())
+            .then((answer) => peerConnection.setLocalDescription(answer))
+            .then(() => {
+               socket.emit('answer', answer);
+            })
+            .catch((error) => {
+               console.error('Error creating answer:', error);
+            });
+      });
+
+      socket.on('answer', (answer) => {
+         peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
+            .catch((error) => {
+               console.error('Error setting remote description:', error);
+            });
+      });
+
+      socket.on('ice-candidate', (candidate) => {
+         peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+            .catch((error) => {
+               console.error('Error adding ICE candidate:', error);
+            });
+      });
+
+      navigator.mediaDevices.getUserMedia({ audio: true })
+         .then((stream) => {
+            localStream = stream;
+            const audioTrack = stream.getAudioTracks()[0];
+            peerConnection.addTrack(audioTrack, stream);
+
+            audioElement.srcObject = stream;
+         })
+         .catch((error) => {
+            console.error('Error accessing media devices:', error);
+         });
+
+      function addUser(userId) {
+         const listItem = document.createElement('li');
+         listItem.textContent = `User ${userId}`;
+         userContainer.appendChild(listItem);
+      }
+
+      function removeUser(userId) {
+         const listItem = Array.from(userContainer.children).find((li) => li.textContent.includes(userId));
+         if (listItem) {
+            userContainer.removeChild(listItem);
+         }
+      }
+
+      function createOffer(targetUserId) {
+         peerConnection.createOffer()
+            .then((offer) => peerConnection.setLocalDescription(offer))
+            .then(() => {
+               socket.emit('offer', peerConnection.localDescription, targetUserId);
+            })
+            .catch((error) => {
+               console.error('Error creating offer:', error);
+            });
+      }
+   </script>
+</body>
+</html>
