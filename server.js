@@ -3,10 +3,7 @@ const http = require('http');
 const socketIO = require('socket.io');
 
 const app = express();
-const server = http.createServer({
-    key:'',
-    cert:'',
-},app);
+const server = http.createServer(app);
 const io = socketIO(server);
 
 const PORT = process.env.PORT || 3000;
