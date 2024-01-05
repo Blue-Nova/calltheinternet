@@ -1,4 +1,5 @@
 const express = require('express');
+const http = require('http');
 const socketIO = require('socket.io');
 const { Server } = require('http');
 
@@ -11,26 +12,27 @@ app.use(express.static('public'));
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  // Join a room when requested by the client
   socket.on('joinRoom', (roomId) => {
     socket.join(roomId);
-  });
+    io.to(roomId).emit('participantJoined', socket.id);
 
-  // Handle WebRTC signaling events
-  socket.on('offer', (offer, targetUserId, roomId) => {
-    io.to(targetUserId).emit('offer', offer, socket.id, roomId);
-  });
+    // Handle WebRTC signaling events
+    socket.on('offer', (offer, targetUserId) => {
+      io.to(targetUserId).emit('offer', offer, socket.id);
+    });
 
-  socket.on('answer', (answer, targetUserId, roomId) => {
-    io.to(targetUserId).emit('answer', answer, socket.id, roomId);
-  });
+    socket.on('answer', (answer, targetUserId) => {
+      io.to(targetUserId).emit('answer', answer, socket.id);
+    });
 
-  socket.on('iceCandidate', (candidate, targetUserId, roomId) => {
-    io.to(targetUserId).emit('iceCandidate', candidate, socket.id, roomId);
-  });
+    socket.on('iceCandidate', (candidate, targetUserId) => {
+      io.to(targetUserId).emit('iceCandidate', candidate, socket.id);
+    });
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    socket.on('disconnect', () => {
+      console.log('User disconnected:', socket.id);
+      io.to(roomId).emit('participantDisconnected', socket.id);
+    });
   });
 });
 

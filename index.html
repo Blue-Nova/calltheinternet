@@ -7,16 +7,22 @@
 </head>
 <body>
   <h2>Room ID: <span id="roomId"></span></h2>
-  <audio id="audio" controls></audio>
+  <button id="joinCall">Join Call</button>
+  <div id="participants"></div>
 
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
   <script>
     const socket = io();
-    const audioElement = document.getElementById('audio');
     const roomIdElement = document.getElementById('roomId');
+    const joinCallButton = document.getElementById('joinCall');
+    const participantsElement = document.getElementById('participants');
     let peerConnection;
 
     socket.on('connect', () => {
+      joinCallButton.disabled = false;
+    });
+
+    joinCallButton.addEventListener('click', () => {
       const roomId = prompt('Enter room ID:');
       roomIdElement.textContent = roomId;
 
@@ -24,7 +30,63 @@
       socket.emit('joinRoom', roomId);
 
       // Set up WebRTC
-      setupWebRTC();
+      setupWebRTC(roomId);
+    });
+
+    function setupWebRTC(roomId) {
+      const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+      peerConnection = new RTCPeerConnection(configuration);
+
+      // Add audio track to the connection
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => {
+          stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
+        })
+        .catch((error) => {
+          console.error('Error accessing media devices:', error);
+        });
+
+      // Send ICE candidates to other participants
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('iceCandidate', event.candidate);
+        }
+      };
+
+      // Create and send offer to other participants
+      peerConnection.createOffer()
+        .then((offer) => peerConnection.setLocalDescription(offer))
+        .then(() => {
+          socket.emit('offer', peerConnection.localDescription, roomId);
+        })
+        .catch((error) => {
+          console.error('Error creating offer:', error);
+        });
+
+      // Receive audio from other participants
+      peerConnection.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          // Handle incoming audio track
+          const remoteAudioStream = event.streams[0];
+          const participantAudio = document.createElement('audio');
+          participantAudio.srcObject = remoteAudioStream;
+          participantsElement.appendChild(participantAudio);
+        }
+      };
+    }
+
+    socket.on('participantJoined', (participantId) => {
+      console.log(`Participant joined: ${participantId}`);
+    });
+
+    socket.on('participantDisconnected', (participantId) => {
+      console.log(`Participant disconnected: ${participantId}`);
+      // Remove the audio element of the disconnected participant
+      const participantAudio = document.querySelector(`audio[srcObject="${participantId}"]`);
+      if (participantAudio) {
+        participantAudio.remove();
+      }
     });
 
     socket.on('offer', (offer, senderId) => {
@@ -47,55 +109,6 @@
       // Handle incoming ICE candidate
       peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     });
-
-    socket.on('participantDisconnected', (participantId) => {
-      // Handle participant disconnection
-      console.log(`Participant disconnected: ${participantId}`);
-      // You can implement UI updates or other logic as needed
-    });
-
-    function setupWebRTC() {
-      const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-
-      peerConnection = new RTCPeerConnection(configuration);
-
-      // Add audio track to the connection
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then((stream) => {
-          stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
-          audioElement.srcObject = stream;
-        })
-        .catch((error) => {
-          console.error('Error accessing media devices:', error);
-        });
-
-      // Send ICE candidates to the other participant
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit('iceCandidate', event.candidate);
-        }
-      };
-
-      // Create and send offer to the other participant
-      peerConnection.createOffer()
-        .then((offer) => peerConnection.setLocalDescription(offer))
-        .then(() => {
-          socket.emit('offer', peerConnection.localDescription, roomId);
-        })
-        .catch((error) => {
-          console.error('Error creating offer:', error);
-        });
-
-      // Receive audio from other participants
-      peerConnection.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          // Handle incoming audio track
-          const remoteAudioStream = event.streams[0];
-          // Do something with the remote audio stream, e.g., play it in another audio element
-          // remoteAudioElement.srcObject = remoteAudioStream;
-        }
-      };
-    }
   </script>
 </body>
 </html>
