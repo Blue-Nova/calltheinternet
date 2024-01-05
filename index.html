@@ -48,6 +48,12 @@
       peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     });
 
+    socket.on('participantDisconnected', (participantId) => {
+      // Handle participant disconnection
+      console.log(`Participant disconnected: ${participantId}`);
+      // You can implement UI updates or other logic as needed
+    });
+
     function setupWebRTC() {
       const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -66,7 +72,7 @@
       // Send ICE candidates to the other participant
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          socket.emit('iceCandidate', event.candidate, event.targetUserId);
+          socket.emit('iceCandidate', event.candidate);
         }
       };
 
@@ -79,6 +85,16 @@
         .catch((error) => {
           console.error('Error creating offer:', error);
         });
+
+      // Receive audio from other participants
+      peerConnection.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          // Handle incoming audio track
+          const remoteAudioStream = event.streams[0];
+          // Do something with the remote audio stream, e.g., play it in another audio element
+          // remoteAudioElement.srcObject = remoteAudioStream;
+        }
+      };
     }
   </script>
 </body>
