@@ -1,42 +1,44 @@
 const express = require('express');
-const http = require('http');
 const socketIO = require('socket.io');
-const path = require('path');
+const { Server } = require('http');
 
 const app = express();
-const server = http.createServer(app);
+const server = Server(app);
 const io = socketIO(server);
-
-const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 
-io.on('connection', socket => {
-   console.log('A user connected to the voice call room');
- 
-   // Handle 'join' events
-   socket.on('join', () => {
-      console.log('A user joined the voice call room');
-      socket.broadcast.emit('user-joined', socket.id);
-   });
- 
-   // Handle 'leave' events
-   socket.on('leave', () => {
-      console.log('A user left the voice call room');
-      socket.broadcast.emit('user-left', socket.id);
-   });
- 
-   // Handle 'disconnect' events
-   socket.on('disconnect', () => {
-      console.log('A user disconnected from the voice call room');
-      socket.broadcast.emit('user-disconnected', socket.id);
-   });
- });
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
 
-app.get('/', (req, res) => {
-   res.sendFile(path.join(__dirname) + '/index.html');
+  // Join a room when requested by the client
+  socket.on('joinRoom', (roomId) => {
+    socket.join(roomId);
+  });
+
+  // Handle WebRTC signaling events
+  socket.on('offer', (offer, targetUserId, roomId) => {
+    io.to(targetUserId).emit('offer', offer, socket.id, roomId);
+  });
+
+  socket.on('answer', (answer, targetUserId, roomId) => {
+    io.to(targetUserId).emit('answer', answer, socket.id, roomId);
+  });
+
+  socket.on('iceCandidate', (candidate, targetUserId, roomId) => {
+    io.to(targetUserId).emit('iceCandidate', candidate, socket.id, roomId);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
 });
 
+app.get('/', (req, res) => {
+   res.sendFile(__dirname + '/index.html');
+});
+
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-   console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
