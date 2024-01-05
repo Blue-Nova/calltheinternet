@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
-const socketIO = require('socket.io');
+const socketIO = require('socket.io')(http);
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -10,9 +11,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 
-const voiceCallRoom = io.of('/');
-
-voiceCallRoom.on('connection', socket => {
+io.on('connection', socket => {
    console.log('A user connected to the voice call room');
  
    // Handle 'join' events
@@ -35,7 +34,7 @@ voiceCallRoom.on('connection', socket => {
  });
 
 app.get('/', (req, res) => {
-   res.sendFile(__dirname + '/index.html');
+   res.sendFile(path.join(__dirname) + '/index.html');
 });
 
 server.listen(PORT, () => {
