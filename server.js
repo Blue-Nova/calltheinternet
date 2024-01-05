@@ -11,7 +11,6 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static('public'));
 
 io.on('connection', (socket) => {
-   console.log('User connected:', socket.id);
 
    // Notify all clients about the new user
    io.emit('user-connected', socket.id);
@@ -30,7 +29,6 @@ io.on('connection', (socket) => {
    });
 
    socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
 
       // Notify all clients about the disconnected user
       io.emit('user-disconnected', socket.id);
