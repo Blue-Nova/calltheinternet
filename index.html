@@ -6,6 +6,8 @@
    <title>Simple Voice Chat</title>
 </head>
 <body>
+    <h1>Call The Internet</h1>
+    <h3>A call, where the whole internet is welcome to join.</h3>
    <ul id="user-list"></ul>
    <audio id="audio" controls></audio>
 
@@ -25,7 +27,6 @@
       };
 
       socket.on('user-connected', (userId) => {
-         addUser(userId);
          createOffer(userId);
       });
 
@@ -34,7 +35,6 @@
       });
 
       socket.on('offer', (offer, senderId) => {
-         addUser(senderId);
          peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
             .then(() => peerConnection.createAnswer())
             .then((answer) => peerConnection.setLocalDescription(answer))
@@ -71,12 +71,6 @@
          .catch((error) => {
             console.error('Error accessing media devices:', error);
          });
-
-      function addUser(userId) {
-         const listItem = document.createElement('li');
-         listItem.textContent = `User ${userId}`;
-         userContainer.appendChild(listItem);
-      }
 
       function removeUser(userId) {
          const listItem = Array.from(userContainer.children).find((li) => li.textContent.includes(userId));
