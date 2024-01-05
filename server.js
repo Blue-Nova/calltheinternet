@@ -10,30 +10,29 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 
-io.on('connection', (socket) => {
+const voiceCallRoom = io.of('/');
 
-   // Notify all clients about the new user
-   io.emit('user-connected', socket.id);
-
-   // Handle WebRTC signaling
-   socket.on('offer', (offer) => {
-      io.emit('offer', offer, socket.id);
+voiceCallRoom.on('connection', socket => {
+   console.log('A user connected to the voice call room');
+ 
+   // Handle 'join' events
+   socket.on('join', () => {
+      console.log('A user joined the voice call room');
+      socket.broadcast.emit('user-joined', socket.id);
    });
-
-   socket.on('answer', (answer) => {
-      io.emit('answer', answer, socket.id);
+ 
+   // Handle 'leave' events
+   socket.on('leave', () => {
+      console.log('A user left the voice call room');
+      socket.broadcast.emit('user-left', socket.id);
    });
-
-   socket.on('ice-candidate', (candidate) => {
-      io.emit('ice-candidate', candidate, socket.id);
-   });
-
+ 
+   // Handle 'disconnect' events
    socket.on('disconnect', () => {
-
-      // Notify all clients about the disconnected user
-      io.emit('user-disconnected', socket.id);
+      console.log('A user disconnected from the voice call room');
+      socket.broadcast.emit('user-disconnected', socket.id);
    });
-});
+ });
 
 app.get('/', (req, res) => {
    res.sendFile(__dirname + '/index.html');
